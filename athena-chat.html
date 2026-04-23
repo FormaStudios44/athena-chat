@@ -699,6 +699,55 @@ body {
 .athena-artifact-btn:hover { opacity: 0.8; }
 .athena-artifact-btn.primary { background: rgba(0,0,0,0.88); color: #fff; }
 .athena-artifact-btn.ghost   { background: transparent; color: rgba(0,0,0,0.4); text-decoration: underline; }
+.artifact-badge-built { background: #F6FFED; color: #389E0D; border: 0.5px solid #B7EB8F; }
+.athena-artifact-btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+
+/* ── Thought Chain ── */
+.thought-chain {
+  margin-top: 8px; border: 1px solid #F0F0F0; border-radius: 8px;
+  overflow: hidden; background: rgba(0,0,0,0.01); width: 338px;
+}
+.thought-chain-label {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-bottom: 1px solid #F0F0F0;
+  font-family: 'Lato', sans-serif; font-size: 11px; font-weight: 700;
+  color: rgba(0,0,0,0.4); text-transform: uppercase; letter-spacing: 0.05em;
+}
+.thought-chain-steps { padding: 8px 12px; display: flex; flex-direction: column; gap: 7px; }
+.thought-step {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Lato', sans-serif; font-size: 12px; color: rgba(0,0,0,0.65);
+  opacity: 0; transform: translateY(3px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.thought-step.visible { opacity: 1; transform: translateY(0); }
+.thought-step.done { color: rgba(0,0,0,0.35); }
+.thought-step-icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+@keyframes tc-spin { to { transform: rotate(360deg); } }
+.tc-spinner {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 1.5px solid #E0E0E0; border-top-color: #1677FF;
+  animation: tc-spin 0.65s linear infinite;
+}
+.tc-check { color: #52C41A; font-size: 12px; line-height: 1; }
+
+/* ── Clarify Options ── */
+.clarify-options { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; width: 338px; }
+.clarify-option {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border: 1px solid #E8E8E8; border-radius: 8px;
+  cursor: pointer; text-align: left; background: #fff; width: 100%;
+  font-family: 'Lato', sans-serif; font-size: 13px; color: rgba(0,0,0,0.75);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.clarify-option:hover { border-color: #1677FF; background: #F0F5FF; color: #1677FF; }
+.clarify-option:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
+.clarify-num {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  background: #F5F5F5; border: 1px solid #E8E8E8;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: rgba(0,0,0,0.4);
+}
 
 /* ── Notification card ── */
 .notif-card {
@@ -1347,7 +1396,9 @@ function sendMessage() {
     return;
   }
 
-  const artifactType = detectArtifactType(val);
+  const artifactType    = detectArtifactType(val);
+  const clarifyScenario = !artifactType ? detectClarifyScenario(val) : null;
+
   appendMessage(val, 'user');
   inputEl.value = '';
   sendBtn.disabled = true;
@@ -1356,6 +1407,13 @@ function sendMessage() {
     const tmpl = ARTIFACT_TEMPLATES[artifactType];
     startChatProcessing(tmpl.proc, () => {
       appendArtifact(artifactType);
+      sendBtn.disabled = false;
+    });
+  } else if (clarifyScenario) {
+    const scenario = CLARIFY_SCENARIOS[clarifyScenario];
+    startChatProcessing(['Thinking…'], () => {
+      appendAIBubble(scenario.intro);
+      appendClarifyOptions(scenario.options);
       sendBtn.disabled = false;
     });
   } else {
@@ -1489,6 +1547,16 @@ inputEl.addEventListener('input', e => {
   else if (!inputEl.value.startsWith('/')) { hideAgentPicker(); }
 });
 sendBtn.addEventListener('click', sendMessage);
+
+// Artifact primary button → thought chain
+messagesEl.addEventListener('click', e => {
+  const btn = e.target.closest('.athena-artifact-btn.primary');
+  if (!btn) return;
+  const card = btn.closest('.athena-artifact');
+  if (!card || card.dataset.artifactType === 'built') return; // ignore the approval card's button
+  const type = card.dataset.artifactType;
+  if (type && THOUGHT_CHAIN_STEPS[type]) triggerThoughtChain(btn, type);
+});
 // Click outside closes picker
 const changeBannerBtn = document.querySelector('.agent-banner-change');
 document.addEventListener('click', e => {
@@ -2029,6 +2097,50 @@ const ARTIFACT_TEMPLATES = {
   }
 };
 
+const THOUGHT_CHAIN_STEPS = {
+  audience:   ['Pulling identity graph from Zeta Data Cloud', 'Scoring purchase intent signals across profiles', 'Applying DMA geo-filters for warm-weather markets', 'Validating segment overlap and deduplication', 'Exporting final audience definition'],
+  forecast:   ['Loading historical campaign performance data', 'Calculating baseline conversion benchmarks', 'Applying seasonal trend adjustments', 'Running projections across 10K simulations', 'Generating forecast with confidence intervals'],
+  automation: ['Mapping trigger conditions to contact segments', 'Configuring email template and suppression rules', 'Setting wait logic and frequency caps', 'Building SMS fallback for non-openers', 'Validating flow logic end-to-end'],
+  campaign:   ['Selecting channels based on audience overlap', 'Allocating budget by predicted channel ROAS', 'Scheduling sends around peak engagement windows', 'Applying creative specs per channel', 'Finalizing targeting rules and flight dates'],
+  journey:    ['Mapping contact lifecycle milestones', 'Configuring stage triggers and exit conditions', 'Personalizing content for each stage', 'Setting frequency caps and fatigue rules', 'Running journey logic validation'],
+  media:      ['Analyzing Q2 ROAS by channel', 'Running channel mix optimizer', 'Benchmarking against category standards', 'Factoring audience reach by platform', 'Finalizing budget allocation and flight plan']
+};
+
+const THOUGHT_CHAIN_FINAL = {
+  audience:   "Audience built — 2.4M contacts qualified and ready to activate. Review and approve below.",
+  forecast:   "Forecast complete. Review the projections and approve to lock them in.",
+  automation: "Automation is ready to go live. Review the flow and approve to activate.",
+  campaign:   "Campaign drafted and ready for launch. Review the details and approve.",
+  journey:    "Journey path built. Review the 4-stage sequence and approve to activate.",
+  media:      "Media plan finalized. Review channel allocation and approve."
+};
+
+const CLARIFY_SCENARIOS = {
+  default: {
+    intro: "Happy to help! To make sure I build exactly what you need, could you tell me a bit more?",
+    options: [
+      'Build a targeted audience for an upcoming campaign',
+      'Draft and launch a multi-channel campaign',
+      'Create a performance forecast for Q3'
+    ]
+  },
+  help: {
+    intro: "I can help with a lot here. What are you looking to do?",
+    options: [
+      'Plan a campaign from scratch',
+      'Build or refine an audience segment',
+      'Map out a customer journey or automation'
+    ]
+  }
+};
+
+function detectClarifyScenario(text) {
+  const t = text.toLowerCase();
+  if (['help', 'what can', 'what should', 'not sure', 'where do i', 'how do i', 'can you'].some(kw => t.includes(kw))) return 'help';
+  if (text.trim().split(/\s+/).length <= 3) return 'default';
+  return null;
+}
+
 function detectArtifactType(text) {
   const t = text.toLowerCase();
   if (t.includes('media plan') || (t.includes('media') && !t.includes('social media'))) return 'media';
@@ -2250,6 +2362,109 @@ function applyRecSegment(cardId) {
   );
 }
 
+// ── Thought chain ──
+function triggerThoughtChain(btn, type) {
+  btn.disabled = true;
+  btn.textContent = 'Building…';
+  const tmpl  = ARTIFACT_TEMPLATES[type];
+  const steps = THOUGHT_CHAIN_STEPS[type] || [];
+  const now   = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  const uid   = Date.now();
+
+  // Build the thought-chain bubble
+  const stepsHtml = steps.map((s, i) =>
+    '<div class="thought-step" id="tc-' + uid + '-' + i + '">' +
+      '<div class="thought-step-icon"><div class="tc-spinner"></div></div>' +
+      '<span>' + escHtml(s) + '</span>' +
+    '</div>'
+  ).join('');
+  const row = document.createElement('div');
+  row.className = 'bubble-row bubble-ai';
+  row.innerHTML =
+    '<div class="bubble-inner"><div class="bubble-body"><div class="bubble-content">' +
+      '<div class="bubble-item"><span class="bubble-text">On it — building your ' + escHtml(tmpl.label.toLowerCase()) + ' now.</span></div>' +
+      '<div class="thought-chain">' +
+        '<div class="thought-chain-label">Thought process</div>' +
+        '<div class="thought-chain-steps">' + stepsHtml + '</div>' +
+      '</div>' +
+    '</div></div></div>' +
+    '<div class="timestamp"><span class="timestamp-tag">' + now + '</span></div>';
+  messagesEl.appendChild(row);
+  chatContent.scrollTop = chatContent.scrollHeight;
+
+  // Reveal steps sequentially
+  const stepEls = [...row.querySelectorAll('.thought-step')];
+  let i = 0;
+  function revealNext() {
+    if (i < stepEls.length) {
+      const el = stepEls[i];
+      requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
+      if (i > 0) markDone(stepEls[i - 1]);
+      chatContent.scrollTop = chatContent.scrollHeight;
+      i++;
+      setTimeout(revealNext, 900);
+    } else {
+      if (stepEls.length) markDone(stepEls[stepEls.length - 1]);
+      setTimeout(() => appendFinalApprovalCard(type), 700);
+    }
+  }
+  function markDone(el) {
+    el.classList.add('done');
+    el.querySelector('.thought-step-icon').innerHTML = '<span class="tc-check">✓</span>';
+  }
+  setTimeout(revealNext, 400);
+}
+
+function appendFinalApprovalCard(type) {
+  const tmpl = ARTIFACT_TEMPLATES[type];
+  if (!tmpl) return;
+  const finalCopy = THOUGHT_CHAIN_FINAL[type] || 'Here\'s the final version — review and approve.';
+
+  // Build the card using existing builder but with "Built" badge + approval actions
+  const approvalTmpl = Object.assign({}, tmpl, {
+    badge: 'Built', badgeClass: 'built',
+    cta: 'Approve & Save', dismiss: 'Request Changes'
+  });
+  const { id, html } = buildArtifactCard(approvalTmpl);
+
+  appendAIBubble(finalCopy);
+  const lastContent = messagesEl.querySelector('.bubble-row.bubble-ai:last-child .bubble-content');
+  if (lastContent) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    lastContent.appendChild(wrapper.firstChild);
+    chatContent.scrollTop = chatContent.scrollHeight;
+    setTimeout(() => {
+      const card = document.getElementById(id);
+      if (card) requestAnimationFrame(() => requestAnimationFrame(() => {
+        card.classList.add('show');
+        setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 420);
+      }));
+    }, 150);
+  }
+}
+
+// ── Clarify options ──
+function appendClarifyOptions(options) {
+  const lastContent = messagesEl.querySelector('.bubble-row.bubble-ai:last-child .bubble-content');
+  if (!lastContent) return;
+  const block = document.createElement('div');
+  block.className = 'clarify-options';
+  options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'clarify-option';
+    btn.innerHTML = '<span class="clarify-num">' + (i + 1) + '</span>' + escHtml(opt);
+    btn.addEventListener('click', () => {
+      block.querySelectorAll('.clarify-option').forEach(b => b.disabled = true);
+      inputEl.value = opt;
+      sendMessage();
+    });
+    block.appendChild(btn);
+  });
+  lastContent.appendChild(block);
+  setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 50);
+}
+
 function buildArtifactCard(tmpl) {
   let bodyContent = '';
   if (tmpl.metrics) {
@@ -2284,7 +2499,7 @@ function buildArtifactCard(tmpl) {
   return {
     id,
     html:
-      '<div class="athena-artifact" id="' + id + '">' +
+      '<div class="athena-artifact" id="' + id + '" data-artifact-type="' + tmpl.badgeClass + '">' +
         '<div class="athena-artifact-header">' +
           '<span class="athena-artifact-type">' + escHtml(tmpl.label) + '</span>' +
           '<span class="athena-artifact-badge artifact-badge-' + tmpl.badgeClass + '">' + escHtml(tmpl.badge) + '</span>' +
