@@ -1251,11 +1251,28 @@ const agentBannerName = document.getElementById('agentBannerName');
 const agentPicker = document.getElementById('agentPicker');
 let pickerFocusIdx = -1;
 let activeAgent = null;
+let bannerHiddenByPicker = false; // tracks whether picker slid the sticky banner away
 
 function showAgentPicker() {
   pickerFocusIdx = -1;
   agentPicker.classList.add('visible');
   agentBanner.classList.remove('visible');
+
+  // Slide the sticky banner down behind the input field
+  const stickyWrap = document.getElementById('stickyBannerWrap');
+  if (stickyWrap.classList.contains('show')) {
+    bannerHiddenByPicker = true;
+    stickyWrap.style.transition = 'transform 0.2s ease-in, opacity 0.16s ease-in';
+    stickyWrap.style.transform  = 'translateY(100%)';
+    stickyWrap.style.opacity    = '0';
+    setTimeout(() => {
+      stickyWrap.classList.remove('show');
+      stickyWrap.style.transition = 'none';
+      stickyWrap.style.transform  = '';
+      stickyWrap.style.opacity    = '0'; // keep inline so CSS transition can't re-flash
+    }, 210);
+  }
+
   const searchInput = document.getElementById('agentSearchInput');
   if (searchInput) {
     searchInput.value = '';
@@ -1269,6 +1286,16 @@ function hideAgentPicker() {
   if (activeAgent) agentBanner.classList.add('visible');
   pickerFocusIdx = -1;
   updatePickerFocus();
+
+  // Restore sticky banner if picker hid it
+  if (bannerHiddenByPicker) {
+    bannerHiddenByPicker = false;
+    const stickyWrap = document.getElementById('stickyBannerWrap');
+    stickyWrap.removeAttribute('style'); // clear inline opacity so CSS transition can run
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      stickyWrap.classList.add('show');
+    }));
+  }
 }
 function filterAgents(query) {
   const items = agentPicker.querySelectorAll('.agent-item');
