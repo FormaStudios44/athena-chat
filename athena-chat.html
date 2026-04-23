@@ -702,6 +702,28 @@ body {
 
 /* ── Notification artifact (inline chat reference when user asks a question) ── */
 .notif-artifact-row { display: flex; width: 100%; }
+
+/* ── Agent divider chip ── */
+.agent-divider {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 2px 0;
+}
+.agent-divider::before,
+.agent-divider::after {
+  content: ''; flex: 1; height: 1px;
+  background: rgba(0,0,0,0.08);
+}
+.agent-divider-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  background: #F0F5FF;
+  border: 1px solid rgba(22,119,255,0.25);
+  border-radius: 20px;
+  font-family: 'Lato', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: #1677FF; white-space: nowrap;
+  letter-spacing: 0.01em;
+}
 .notif-artifact {
   width: 300px;
   border: 1px solid #E8E8E8; border-radius: 8px;
@@ -2122,6 +2144,25 @@ function highlightMentions(str) {
 }
 
 // ── Agent activation message ──
+function appendAgentDivider(name) {
+  const chatMessages = document.querySelector('.messages');
+  const divider = document.createElement('div');
+  divider.className = 'agent-divider';
+  divider.innerHTML =
+    '<div class="agent-divider-chip">' +
+      '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="flex-shrink:0">' +
+        '<path fill-rule="evenodd" clip-rule="evenodd" d="M7.01126 0.470228C7.19962 0.327342 7.42956 0.25 7.66598 0.25C7.90241 0.25 8.13234 0.327342 8.32071 0.470228C8.50907 0.613112 8.64552 0.813694 8.70923 1.04137L8.71325 1.05634L9.76721 5.14615C9.79325 5.24709 9.84586 5.3392 9.91957 5.41291C9.99323 5.48658 10.0853 5.53917 10.1861 5.56523L14.2884 6.6224C14.517 6.68545 14.7186 6.82186 14.8622 7.0105C15.0059 7.19915 15.0837 7.42972 15.0837 7.66683C15.0837 7.90395 15.0059 8.13452 14.8622 8.32317C14.7186 8.51181 14.517 8.64812 14.2884 8.71117L14.2762 8.71454L10.1863 9.76839C10.0854 9.79443 9.99328 9.84704 9.91957 9.92075C9.84586 9.99446 9.79325 10.0866 9.76721 10.1875L8.71256 14.2774L8.70857 14.2923C8.64485 14.52 8.5084 14.7206 8.32004 14.8634C8.13168 15.0063 7.90175 15.0837 7.66532 15.0837C7.42889 15.0837 7.19896 15.0063 7.0106 14.8634C6.82224 14.7206 6.68578 14.52 6.62207 14.2923L6.61804 14.2773L5.56409 10.1875C5.53804 10.0867 5.4854 9.99442 5.41173 9.92075C5.33802 9.84704 5.24591 9.79443 5.14497 9.76839L1.05504 8.71374L1.03753 8.709C0.810748 8.64463 0.61115 8.50805 0.469023 8.31996C0.326897 8.13188 0.25 7.90257 0.25 7.66683C0.25 7.43109 0.326897 7.20178 0.469023 7.0137C0.61115 6.82562 0.810748 6.68903 1.03753 6.62467L1.05493 6.61995L5.14493 5.56462C5.24584 5.5386 5.33807 5.486 5.41177 5.41234C5.48541 5.33876 5.53801 5.24682 5.56412 5.14605L6.61874 1.05623L6.62273 1.04137C6.68645 0.813698 6.8229 0.613115 7.01126 0.470228Z" fill="currentColor"/>' +
+      '</svg>' +
+      escHtml(name) +
+    '</div>';
+  divider.style.opacity = '0';
+  chatMessages.appendChild(divider);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    divider.style.transition = 'opacity 0.35s ease';
+    divider.style.opacity = '1';
+    chatContent.scrollTop = chatContent.scrollHeight;
+  }));
+}
 function triggerAgentActivation(name) {
   const chatMessages = document.querySelector('.messages');
   const row = document.createElement('div');
@@ -2137,7 +2178,10 @@ function triggerAgentActivation(name) {
     clearInterval(dotTimer);
     row.style.transition = 'opacity 0.3s';
     row.style.opacity = '0';
-    setTimeout(() => row.remove(), 300);
+    setTimeout(() => {
+      row.remove();
+      appendAgentDivider(name);
+    }, 300);
   }, 2000);
 }
 </script>
