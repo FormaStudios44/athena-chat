@@ -701,6 +701,31 @@ body {
   font-family: 'Lato', sans-serif; font-size: 11px;
   color: rgba(0,0,0,0.4); text-align: center;
 }
+
+/* ── Notification artifact (inline chat reference when user asks a question) ── */
+.notif-artifact-row { display: flex; width: 100%; }
+.notif-artifact {
+  width: 300px;
+  border: 1px solid #E8E8E8; border-radius: 8px;
+  background: #FAFAFA; overflow: hidden;
+}
+.notif-artifact-top {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px 6px; border-bottom: 1px solid #F0F0F0;
+}
+.notif-artifact-ref {
+  margin-left: auto; flex-shrink: 0;
+  font-family: 'Lato', sans-serif; font-size: 10px; font-weight: 700;
+  color: rgba(0,0,0,0.28); text-transform: uppercase; letter-spacing: 0.05em;
+}
+.notif-artifact-title {
+  font-family: 'Lato', sans-serif; font-size: 12px; font-weight: 700;
+  color: rgba(0,0,0,0.88); line-height: 17px; padding: 6px 12px 3px;
+}
+.notif-artifact-desc {
+  font-family: 'Lato', sans-serif; font-size: 11px;
+  color: rgba(0,0,0,0.5); line-height: 16px; padding: 0 12px 8px;
+}
 </style>
 </head>
 <body>
@@ -1136,10 +1161,81 @@ function hideTyping() {
   if (t) t.remove();
 }
 
+// ── Notification Q&A (user asks a question while notif card is open) ──
+const NOTIF_QA_RESPONSES = {
+  error: {
+    proc: ['Pulling error logs', 'Analyzing suppression file', 'Preparing context'],
+    msg:  'The send failure on "July Promo" is caused by malformed email syntax on rows 12–14 of the suppression file. That blocked the entire batch instead of skipping only the affected rows. I can correct the file and re-queue the send automatically — want me to proceed?'
+  },
+  critical: {
+    proc: ['Checking pipeline status', 'Pulling sync metrics', 'Analyzing bottleneck'],
+    msg:  '"Warm Weather Shoppers" is syncing at 23% of normal speed because the source API is throttling the connector. At current throughput it will complete in ~17 minutes instead of the usual 4. I\'ve already flagged this to the pipeline team — want me to monitor and alert you when it recovers?'
+  },
+  actionable: {
+    proc: ['Reviewing budget data', 'Calculating spend velocity', 'Preparing summary'],
+    msg:  '"Summer Apparel Push" has burned through 92% of its budget. Spend velocity jumped 34% in the last 6 hours because audience match rates are stronger than expected — that\'s actually a good sign. The campaign will auto-pause in ~2 hours. How much budget would you like me to add to keep it running?'
+  },
+  reminder: {
+    proc: ['Loading Q3 campaign data', 'Pulling performance metrics', 'Compiling summary'],
+    msg:  'Your Q3 review is 14 days overdue. Three campaigns closed: "Back to School" hit 142% of goal, "Fall Preview" came in at 98%, and "Clearance Event" underperformed at 61% — the lowest in this segment this year. I can generate a full breakdown with Q4 recommendations now if you\'d like.'
+  },
+  directed: {
+    proc: ['Pulling thread context', 'Loading audience data', 'Preparing briefing'],
+    msg:  'Jordan needs your sign-off on a lookalike audience in Campaign Architect. The segment targets 2.4M users with a 78% confidence match against your top converters — that\'s a strong score. Launch is Friday. Want me to pull the full audience breakdown here so you can review before heading to the thread?'
+  }
+};
+
+function appendNotifArtifact(notif) {
+  const row = document.createElement('div');
+  row.className = 'notif-artifact-row';
+  row.innerHTML =
+    '<div class="notif-artifact">' +
+      '<div class="notif-artifact-top">' +
+        '<span class="notif-card-label notif-label-' + notif.type + '">' + (NOTIF_ICONS[notif.type] || '') + escHtml(notif.category) + '</span>' +
+        '<span class="notif-artifact-ref">Context</span>' +
+      '</div>' +
+      '<div class="notif-artifact-title">' + escHtml(notif.title) + '</div>' +
+      '<div class="notif-artifact-desc">'  + escHtml(notif.desc)  + '</div>' +
+    '</div>';
+  messagesEl.appendChild(row);
+  requestAnimationFrame(() => { chatContent.scrollTop = chatContent.scrollHeight; });
+}
+
+function handleNotifQuestion(question) {
+  const notif    = QUEUE[notifIdx];
+  const response = NOTIF_QA_RESPONSES[notif.type];
+
+  // 1. Append user message immediately
+  appendMessage(question, 'user');
+  inputEl.value = '';
+  sendBtn.disabled = true;
+
+  // 2. Collapse the notif card — banner re-appears for unresolved items
+  collapseNotifViewer();
+
+  // 3. After collapse animation, surface artifact + Athena's answer
+  setTimeout(() => {
+    appendNotifArtifact(notif);
+    const proc = response ? response.proc : ['Analyzing context', 'Preparing answer'];
+    const msg  = response ? response.msg  : "I'm looking into this for you.";
+    startChatProcessing(proc, () => {
+      appendAIBubble(msg);
+      sendBtn.disabled = false;
+    });
+  }, 460);
+}
+
 function sendMessage() {
   const val = inputEl.value.trim();
   if (!val || currentState === 'reconnecting') return;
   if (currentState === 'error') { showState('error'); return; }
+
+  // If a notification card is open, treat the message as a question about it
+  if (document.getElementById('notifViewer')) {
+    handleNotifQuestion(val);
+    return;
+  }
+
   appendMessage(val, 'user');
   inputEl.value = '';
   sendBtn.disabled = true;
