@@ -612,6 +612,94 @@ body {
 .rec-card.applied .rec-card-btn.primary { background: #389E0D; }
 .rec-card.applied .rec-card-btn.ghost   { opacity: 0.3; }
 
+/* ── Athena Artifact Cards ── */
+.athena-artifact {
+  margin-top: 8px; border: 1px solid #D9D9D9; border-radius: 8px;
+  overflow: hidden; width: 338px;
+  opacity: 0; transform: translateY(6px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.athena-artifact.show { opacity: 1; transform: translateY(0); }
+.athena-artifact-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: rgba(0,0,0,0.02); border-bottom: 1px solid #F0F0F0;
+}
+.athena-artifact-type {
+  font-family: 'Lato', sans-serif; font-size: 10px; font-weight: 700;
+  color: rgba(0,0,0,0.35); text-transform: uppercase; letter-spacing: 0.05em; flex: 1;
+}
+.athena-artifact-badge {
+  font-family: 'Lato', sans-serif; font-size: 10px; font-weight: 700;
+  padding: 1px 7px; border-radius: 100px;
+}
+.artifact-badge-audience   { background: #F9F0FF; color: #722ED1; border: 0.5px solid #D3ADF7; }
+.artifact-badge-forecast   { background: #F0F5FF; color: #1677FF; border: 0.5px solid #BAD7FF; }
+.artifact-badge-automation { background: #FFF7E6; color: #D46B08; border: 0.5px solid #FFD591; }
+.artifact-badge-campaign   { background: #F6FFED; color: #389E0D; border: 0.5px solid #B7EB8F; }
+.artifact-badge-journey    { background: #E6FFFB; color: #08979C; border: 0.5px solid #87E8DE; }
+.artifact-badge-media      { background: #FFF1F0; color: #CF1322; border: 0.5px solid #FFA39E; }
+.athena-artifact-body { padding: 10px 12px 8px; display: flex; flex-direction: column; gap: 4px; }
+.athena-artifact-title {
+  font-family: 'Lato', sans-serif; font-size: 13px; font-weight: 700;
+  color: rgba(0,0,0,0.88); line-height: 18px;
+}
+.athena-artifact-desc {
+  font-family: 'Lato', sans-serif; font-size: 12px;
+  color: rgba(0,0,0,0.55); line-height: 18px; margin-bottom: 2px;
+}
+/* 3-column metrics strip */
+.athena-artifact-metrics {
+  display: flex; margin-top: 6px;
+  border: 1px solid #F0F0F0; border-radius: 6px; overflow: hidden;
+}
+.athena-artifact-metric {
+  flex: 1; padding: 7px 6px; text-align: center;
+  border-right: 1px solid #F0F0F0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.athena-artifact-metric:last-child { border-right: none; }
+.athena-artifact-metric-val {
+  font-family: 'Lato', sans-serif; font-size: 13px; font-weight: 700;
+  color: rgba(0,0,0,0.88);
+}
+.athena-artifact-metric-lbl {
+  font-family: 'Lato', sans-serif; font-size: 10px;
+  color: rgba(0,0,0,0.4); text-transform: uppercase; letter-spacing: 0.04em;
+}
+/* Steps list (automation, journey) */
+.athena-artifact-steps { margin-top: 6px; display: flex; flex-direction: column; gap: 5px; }
+.athena-artifact-step {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Lato', sans-serif; font-size: 12px; color: rgba(0,0,0,0.65);
+}
+.athena-artifact-step-num {
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+  background: #F5F5F5; border: 1px solid #E8E8E8;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: rgba(0,0,0,0.4);
+}
+/* Channel rows (media plan) */
+.athena-artifact-rows { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.athena-artifact-row-item {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Lato', sans-serif; font-size: 12px;
+}
+.athena-artifact-row-lbl { width: 76px; color: rgba(0,0,0,0.65); font-weight: 600; }
+.athena-artifact-row-bar-wrap { flex: 1; height: 4px; background: #F0F0F0; border-radius: 2px; }
+.athena-artifact-row-bar { height: 100%; border-radius: 2px; background: #1677FF; }
+.athena-artifact-row-pct { width: 28px; text-align: right; color: rgba(0,0,0,0.55); font-size: 11px; font-weight: 700; }
+.athena-artifact-row-amt { width: 34px; text-align: right; color: rgba(0,0,0,0.4); font-size: 11px; }
+/* Actions */
+.athena-artifact-actions { display: flex; gap: 8px; padding: 0 12px 10px; }
+.athena-artifact-btn {
+  padding: 4px 12px; border-radius: 6px; border: none;
+  font-family: 'Lato', sans-serif; font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.athena-artifact-btn:hover { opacity: 0.8; }
+.athena-artifact-btn.primary { background: rgba(0,0,0,0.88); color: #fff; }
+.athena-artifact-btn.ghost   { background: transparent; color: rgba(0,0,0,0.4); text-decoration: underline; }
+
 /* ── Notification card ── */
 .notif-card {
   border: 1px solid #E8E8E8; border-radius: 8px;
@@ -1259,15 +1347,25 @@ function sendMessage() {
     return;
   }
 
+  const artifactType = detectArtifactType(val);
   appendMessage(val, 'user');
   inputEl.value = '';
   sendBtn.disabled = true;
-  showTyping();
-  setTimeout(() => {
-    hideTyping();
-    appendMessage("I'm analyzing your request. Here's what I found based on Zeta's Data Cloud signals and historical campaign performance data.", 'ai');
-    sendBtn.disabled = false;
-  }, 4200);
+
+  if (artifactType) {
+    const tmpl = ARTIFACT_TEMPLATES[artifactType];
+    startChatProcessing(tmpl.proc, () => {
+      appendArtifact(artifactType);
+      sendBtn.disabled = false;
+    });
+  } else {
+    showTyping();
+    setTimeout(() => {
+      hideTyping();
+      appendMessage("I'm analyzing your request. Here's what I found based on Zeta's Data Cloud signals and historical campaign performance data.", 'ai');
+      sendBtn.disabled = false;
+    }, 4200);
+  }
 }
 
 // ── Agent banner + picker ──
@@ -1868,6 +1966,80 @@ function updateBanner() {
 const PREV_SVG = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2.5L5 7L9 11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const NEXT_SVG = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 2.5L9 7L5 11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+// ── Artifact templates ──
+const ARTIFACT_TEMPLATES = {
+  audience: {
+    label: 'Audience', badge: 'Draft', badgeClass: 'audience',
+    title: 'High-Intent Shoppers — Adults 25–44',
+    desc: 'Interest signals in fashion, outdoor & travel. Warm-weather DMA overlap.',
+    metrics: [{ val:'2.4M', lbl:'Size' }, { val:'47', lbl:'Signals' }, { val:'~12%', lbl:'Overlap' }],
+    cta: 'Build Audience', dismiss: 'Edit',
+    proc: ['Analyzing Data Cloud', 'Scoring segments', 'Building audience'],
+    reply: "Here's the audience I put together based on your brief. It targets 2.4M high-intent shoppers with strong purchase signals in fashion and outdoor."
+  },
+  forecast: {
+    label: 'Forecast', badge: 'Projected', badgeClass: 'forecast',
+    title: 'Q3 Campaign Performance Outlook',
+    desc: 'Based on historical send performance and current market signals.',
+    metrics: [{ val:'8.2M', lbl:'Reach' }, { val:'3.4%', lbl:'Conv. Rate' }, { val:'$2.1M', lbl:'Revenue' }],
+    cta: 'Apply Forecast', dismiss: 'Adjust',
+    proc: ['Pulling historical data', 'Running models', 'Generating forecast'],
+    reply: "Here's your Q3 forecast. Based on current signals I'm projecting 8.2M reach with a 3.4% conversion rate — above your Q2 baseline."
+  },
+  automation: {
+    label: 'Automation', badge: 'Ready', badgeClass: 'automation',
+    title: 'Re-engagement Flow',
+    desc: 'Targets contacts inactive for 30+ days with a 3-touch recovery sequence.',
+    steps: ['Trigger: Inactive 30 days', 'Email: Win-back offer (Day 1)', 'Wait: 3 days', 'SMS: Final nudge (Day 4)'],
+    cta: 'Activate', dismiss: 'Edit',
+    proc: ['Mapping triggers', 'Building steps', 'Configuring flow'],
+    reply: "Your re-engagement automation is ready. It fires on a 30-day inactivity trigger and runs a 4-day, 2-touch sequence."
+  },
+  campaign: {
+    label: 'Campaign', badge: 'Draft', badgeClass: 'campaign',
+    title: 'Summer Retail Launch',
+    desc: 'Multi-channel push across email, paid social, and display targeting high-intent shoppers.',
+    metrics: [{ val:'$120K', lbl:'Budget' }, { val:'Jul 1–31', lbl:'Dates' }, { val:'2.4M', lbl:'Audience' }],
+    cta: 'Launch Campaign', dismiss: 'Review',
+    proc: ['Planning channels', 'Allocating budget', 'Drafting campaign'],
+    reply: "Campaign drafted. It runs July 1–31 across email, paid social, and display with a $120K budget against your high-intent shopper segment."
+  },
+  journey: {
+    label: 'Journey Path', badge: 'Draft', badgeClass: 'journey',
+    title: 'Membership Onboarding',
+    desc: 'A 4-stage path guiding new members from sign-up to first purchase.',
+    steps: ['Welcome & orientation email', 'Product discovery nudge (Day 3)', 'First purchase incentive (Day 7)', 'Loyalty program activation (Day 14)'],
+    cta: 'Activate Journey', dismiss: 'Edit',
+    proc: ['Mapping touchpoints', 'Sequencing stages', 'Building journey'],
+    reply: "Journey path built — 4 stages over 14 days, moving new members from welcome to loyalty activation."
+  },
+  media: {
+    label: 'Media Plan', badge: 'Draft', badgeClass: 'media',
+    title: 'Q3 2026 Media Allocation',
+    desc: 'Recommended channel mix based on historical ROAS and audience reach data.',
+    rows: [
+      { lbl:'Email',       pct:40, amt:'$48K' },
+      { lbl:'Paid Social', pct:30, amt:'$36K' },
+      { lbl:'Display',     pct:20, amt:'$24K' },
+      { lbl:'CTV',         pct:10, amt:'$12K' }
+    ],
+    cta: 'Approve Plan', dismiss: 'Revise',
+    proc: ['Analyzing channels', 'Optimizing allocation', 'Building media plan'],
+    reply: "Here's your Q3 media plan. Email leads at 40% given its ROAS efficiency, with paid social and display rounding out the mix."
+  }
+};
+
+function detectArtifactType(text) {
+  const t = text.toLowerCase();
+  if (t.includes('media plan') || (t.includes('media') && !t.includes('social media'))) return 'media';
+  if (t.includes('audience'))   return 'audience';
+  if (t.includes('forecast'))   return 'forecast';
+  if (t.includes('automat'))    return 'automation';
+  if (t.includes('campaign'))   return 'campaign';
+  if (t.includes('journey'))    return 'journey';
+  return null;
+}
+
 const NOTIF_ICONS = {
   error:      '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 5.5L10.5 10.5M10.5 5.5L5.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
   critical:   '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2.5L14.5 13.5H1.5L8 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="12" r="0.75" fill="currentColor"/></svg>',
@@ -2076,6 +2248,81 @@ function applyRecSegment(cardId) {
       appendAIBubble('Done! "' + segTitle + '" has been applied to your campaign. The expanded audience typically goes live within 2–5 minutes — I\'ll surface a status update once traffic starts flowing.');
     }
   );
+}
+
+function buildArtifactCard(tmpl) {
+  let bodyContent = '';
+  if (tmpl.metrics) {
+    const metrics = tmpl.metrics.map(m =>
+      '<div class="athena-artifact-metric">' +
+        '<span class="athena-artifact-metric-val">' + escHtml(m.val) + '</span>' +
+        '<span class="athena-artifact-metric-lbl">' + escHtml(m.lbl) + '</span>' +
+      '</div>'
+    ).join('');
+    bodyContent = '<div class="athena-artifact-metrics">' + metrics + '</div>';
+  } else if (tmpl.steps) {
+    const steps = tmpl.steps.map((s, i) =>
+      '<div class="athena-artifact-step">' +
+        '<span class="athena-artifact-step-num">' + (i + 1) + '</span>' +
+        escHtml(s) +
+      '</div>'
+    ).join('');
+    bodyContent = '<div class="athena-artifact-steps">' + steps + '</div>';
+  } else if (tmpl.rows) {
+    const rows = tmpl.rows.map(r =>
+      '<div class="athena-artifact-row-item">' +
+        '<span class="athena-artifact-row-lbl">' + escHtml(r.lbl) + '</span>' +
+        '<div class="athena-artifact-row-bar-wrap"><div class="athena-artifact-row-bar" style="width:' + r.pct + '%"></div></div>' +
+        '<span class="athena-artifact-row-pct">' + r.pct + '%</span>' +
+        '<span class="athena-artifact-row-amt">' + escHtml(r.amt) + '</span>' +
+      '</div>'
+    ).join('');
+    bodyContent = '<div class="athena-artifact-rows">' + rows + '</div>';
+  }
+
+  const id = 'artifact-' + Date.now();
+  return {
+    id,
+    html:
+      '<div class="athena-artifact" id="' + id + '">' +
+        '<div class="athena-artifact-header">' +
+          '<span class="athena-artifact-type">' + escHtml(tmpl.label) + '</span>' +
+          '<span class="athena-artifact-badge artifact-badge-' + tmpl.badgeClass + '">' + escHtml(tmpl.badge) + '</span>' +
+        '</div>' +
+        '<div class="athena-artifact-body">' +
+          '<div class="athena-artifact-title">' + escHtml(tmpl.title) + '</div>' +
+          '<div class="athena-artifact-desc">'  + escHtml(tmpl.desc)  + '</div>' +
+          bodyContent +
+        '</div>' +
+        '<div class="athena-artifact-actions">' +
+          '<button class="athena-artifact-btn primary">' + escHtml(tmpl.cta)     + '</button>' +
+          '<button class="athena-artifact-btn ghost">'   + escHtml(tmpl.dismiss) + '</button>' +
+        '</div>' +
+      '</div>'
+  };
+}
+
+function appendArtifact(type) {
+  const tmpl = ARTIFACT_TEMPLATES[type];
+  if (!tmpl) return;
+  const { id, html } = buildArtifactCard(tmpl);
+  // Append the reply bubble first
+  appendAIBubble(tmpl.reply);
+  // Then inject the card into the same bubble's content block
+  const lastBubble = messagesEl.querySelector('.bubble-row.bubble-ai:last-child .bubble-content');
+  if (lastBubble) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    lastBubble.appendChild(wrapper.firstChild);
+    chatContent.scrollTop = chatContent.scrollHeight;
+    setTimeout(() => {
+      const card = document.getElementById(id);
+      if (card) requestAnimationFrame(() => requestAnimationFrame(() => {
+        card.classList.add('show');
+        setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 420);
+      }));
+    }, 150);
+  }
 }
 
 function appendAIBubble(text, rec) {
