@@ -731,35 +731,61 @@ body {
 }
 .tc-check { color: #52C41A; font-size: 12px; line-height: 1; }
 
-/* ── Clarify Panel (above input, no timestamp) ── */
+/* ── Clarify Panel (card above input, no timestamp) ── */
 #clarifyPanel {
-  width: 382px;
-  max-height: 0; overflow: hidden; opacity: 0; margin-bottom: 0;
-  transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1),
-              opacity 0.3s ease, margin-bottom 0.35s ease;
+  width: 382px; max-height: 0; overflow: hidden; opacity: 0; margin-bottom: 0;
+  transition: max-height 0.42s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease, margin-bottom 0.35s ease;
 }
-#clarifyPanel.open { max-height: 320px; opacity: 1; margin-bottom: 16px; }
-.clarify-panel-inner { display: flex; flex-direction: column; gap: 8px; }
-.clarify-panel-question {
+#clarifyPanel.open { max-height: 520px; opacity: 1; margin-bottom: 16px; }
+.clarify-card {
+  background: #fff; border: 1px solid #E8E8E8; border-radius: 12px;
+  overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.clarify-card-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid #F0F0F0;
+}
+.clarify-card-question {
   font-family: 'Lato', sans-serif; font-size: 13px; font-weight: 600;
-  color: rgba(0,0,0,0.75); line-height: 18px; padding: 0 2px;
+  color: rgba(0,0,0,0.85); line-height: 18px; flex: 1;
 }
-.clarify-options { display: flex; flex-direction: column; gap: 6px; }
-.clarify-option {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px; border: 1px solid #E8E8E8; border-radius: 8px;
-  cursor: pointer; text-align: left; background: #fff; width: 100%;
-  font-family: 'Lato', sans-serif; font-size: 13px; color: rgba(0,0,0,0.75);
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+.clarify-card-counter {
+  font-family: 'Lato', sans-serif; font-size: 12px; color: rgba(0,0,0,0.3);
+  flex-shrink: 0; padding-top: 1px;
 }
-.clarify-option:hover { border-color: #1677FF; background: #F0F5FF; color: #1677FF; }
-.clarify-option:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
-.clarify-num {
-  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
-  background: #F5F5F5; border: 1px solid #E8E8E8;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; color: rgba(0,0,0,0.4);
+.clarify-card-options { display: flex; flex-direction: column; }
+.clarify-row {
+  display: flex; align-items: center; gap: 12px; padding: 11px 16px;
+  border: none; border-bottom: 1px solid #F5F5F5; border-radius: 0;
+  background: #fff; cursor: pointer; text-align: left; width: 100%;
+  transition: background 0.12s;
 }
+.clarify-row:last-child { border-bottom: none; }
+.clarify-row:hover { background: #FAFAFA; }
+.clarify-row-content { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.clarify-row-title {
+  font-family: 'Lato', sans-serif; font-size: 13px; font-weight: 600;
+  color: rgba(0,0,0,0.8); line-height: 17px;
+}
+.clarify-row-desc {
+  font-family: 'Lato', sans-serif; font-size: 11px;
+  color: rgba(0,0,0,0.4); line-height: 15px;
+}
+.clarify-row-else .clarify-row-title { color: rgba(0,0,0,0.4); font-weight: 400; font-style: italic; }
+.clarify-row-num {
+  font-family: 'Lato', sans-serif; font-size: 12px;
+  color: rgba(0,0,0,0.3); flex-shrink: 0;
+}
+.clarify-card-footer { padding: 10px 16px; border-top: 1px solid #F0F0F0; }
+.clarify-skip-btn {
+  padding: 5px 14px; border-radius: 6px; border: 1px solid #D9D9D9;
+  background: #fff; font-family: 'Lato', sans-serif; font-size: 12px; font-weight: 500;
+  color: rgba(0,0,0,0.65); cursor: pointer; transition: background 0.12s;
+}
+.clarify-skip-btn:hover { background: #FAFAFA; }
+/* Input strip-down when clarify panel is open */
+.sender-box.clarify-mode .attach-btn { display: none; }
+.sender-box.clarify-mode #micBtn    { display: none; }
 
 /* ── Notification card ── */
 .notif-card {
@@ -2132,17 +2158,17 @@ const CLARIFY_SCENARIOS = {
   default: {
     intro: "Happy to help! To make sure I build exactly what you need, could you tell me a bit more?",
     options: [
-      'Build a targeted audience for an upcoming campaign',
-      'Draft and launch a multi-channel campaign',
-      'Create a performance forecast for Q3'
+      { title: 'Build a targeted audience',        desc: 'Use Zeta Data Cloud signals to define and score a segment' },
+      { title: 'Draft a multi-channel campaign',   desc: 'Plan across email, paid social, display, and more' },
+      { title: 'Create a performance forecast',    desc: 'Project reach, conversion rates, and revenue for Q3' }
     ]
   },
   help: {
     intro: "I can help with a lot here. What are you looking to do?",
     options: [
-      'Plan a campaign from scratch',
-      'Build or refine an audience segment',
-      'Map out a customer journey or automation'
+      { title: 'Plan a campaign from scratch',              desc: 'Build a full campaign strategy with targeting and budget' },
+      { title: 'Build or refine an audience segment',      desc: "Use Zeta's Data Cloud to define your target audience" },
+      { title: 'Map out a customer journey or automation', desc: 'Design a multi-step engagement flow with triggers and actions' }
     ]
   }
 };
@@ -2457,35 +2483,73 @@ function appendFinalApprovalCard(type) {
   }
 }
 
-// ── Clarify panel (above input, no timestamp) ──
+// ── Clarify panel (card above input, no timestamp) ──
 const clarifyPanelEl = document.getElementById('clarifyPanel');
+const senderBoxEl    = document.querySelector('.sender-box');
 
 function showClarifyPanel(question, options) {
-  const inner = document.createElement('div');
-  inner.className = 'clarify-panel-inner';
+  const total = options.length + 1; // +1 for "Type something else"
 
-  const q = document.createElement('div');
-  q.className = 'clarify-panel-question';
-  q.textContent = question;
-  inner.appendChild(q);
+  // Build header
+  const header = '<div class="clarify-card-header">' +
+    '<span class="clarify-card-question">' + escHtml(question) + '</span>' +
+    '<span class="clarify-card-counter">1/' + total + '</span>' +
+  '</div>';
 
-  const opts = document.createElement('div');
-  opts.className = 'clarify-options';
-  options.forEach((opt, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'clarify-option';
-    btn.innerHTML = '<span class="clarify-num">' + (i + 1) + '</span>' + escHtml(opt);
+  // Build option rows
+  const rows = options.map((opt, i) =>
+    '<button class="clarify-row" data-clarify-idx="' + i + '">' +
+      '<div class="clarify-row-content">' +
+        '<div class="clarify-row-title">' + escHtml(opt.title) + '</div>' +
+        (opt.desc ? '<div class="clarify-row-desc">' + escHtml(opt.desc) + '</div>' : '') +
+      '</div>' +
+      '<span class="clarify-row-num">' + (i + 1) + '</span>' +
+    '</button>'
+  ).join('');
+
+  // "Type something else" row
+  const typeRow =
+    '<button class="clarify-row clarify-row-else" data-clarify-else="1">' +
+      '<div class="clarify-row-content">' +
+        '<div class="clarify-row-title">Type something else...</div>' +
+      '</div>' +
+      '<span class="clarify-row-num">' + total + '</span>' +
+    '</button>';
+
+  // Footer
+  const footer = '<div class="clarify-card-footer">' +
+    '<button class="clarify-skip-btn">Skip</button>' +
+  '</div>';
+
+  const card = document.createElement('div');
+  card.className = 'clarify-card';
+  card.innerHTML = header + '<div class="clarify-card-options">' + rows + typeRow + '</div>' + footer;
+
+  // Wire option clicks
+  card.querySelectorAll('.clarify-row[data-clarify-idx]').forEach((btn, i) => {
     btn.addEventListener('click', () => {
       hideClarifyPanel();
-      inputEl.value = opt;
+      inputEl.value = options[i].title;
       sendMessage();
     });
-    opts.appendChild(btn);
   });
-  inner.appendChild(opts);
+
+  // "Type something else" → focus input
+  card.querySelector('.clarify-row-else').addEventListener('click', () => {
+    hideClarifyPanel();
+    setTimeout(() => inputEl.focus(), 50);
+  });
+
+  // Skip → dismiss
+  card.querySelector('.clarify-skip-btn').addEventListener('click', hideClarifyPanel);
 
   clarifyPanelEl.innerHTML = '';
-  clarifyPanelEl.appendChild(inner);
+  clarifyPanelEl.appendChild(card);
+
+  // Transform input field
+  senderBoxEl.classList.add('clarify-mode');
+  inputEl.placeholder = 'Type something else…';
+
   requestAnimationFrame(() => requestAnimationFrame(() => {
     clarifyPanelEl.classList.add('open');
   }));
@@ -2493,7 +2557,9 @@ function showClarifyPanel(question, options) {
 
 function hideClarifyPanel() {
   clarifyPanelEl.classList.remove('open');
-  setTimeout(() => { clarifyPanelEl.innerHTML = ''; }, 400);
+  senderBoxEl.classList.remove('clarify-mode');
+  inputEl.placeholder = 'Ask me anything…';
+  setTimeout(() => { clarifyPanelEl.innerHTML = ''; }, 420);
 }
 
 function buildArtifactCard(tmpl) {

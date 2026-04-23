@@ -1,0 +1,80 @@
+---
+description: Clarifying questions card pattern — when Athena needs more context before acting
+globs: ["**/*.html", "**/*.ts", "**/*.tsx"]
+alwaysApply: false
+---
+
+# Athena Clarifying Questions
+
+When a user's message lacks enough context to produce an artifact or take a specific action, Athena surfaces a **clarifying question card** just above the input field (not in the chat thread — no timestamp).
+
+## Visual Design
+
+The card is a unified bordered container (`border: 1px solid #E8E8E8; border-radius: 12px`) with three zones:
+
+1. **Header** — Question text (left, bold 13px) + counter `1/N` (right, muted)
+2. **Options list** — Each option is a full-width button row with:
+   - Bold title + smaller description text on the left
+   - Plain number on the right
+   - Divider between rows (`border-bottom: 1px solid #F5F5F5`)
+   - Last row is always **"Type something else..."** (italic, muted) — clicking it focuses the input field
+3. **Footer** — **Skip** button (outlined, dismisses the panel)
+
+## Input Field Transformation
+
+While the panel is open, the input field strips down:
+- `.attach-btn` hidden (`display: none`)
+- `#micBtn` hidden (`display: none`)
+- `placeholder` changes to `"Type something else…"`
+- Restored to defaults when panel closes
+
+## Positioning
+
+The panel lives in `#clarifyPanel` inside `.chat-prompt`, just before `.sender-wrap`.
+`margin-bottom: 16px` when open keeps exactly 16px between the card and the input.
+Entrance: `max-height` + `opacity` transition (`0.42s cubic-bezier(0.4,0,0.2,1)`).
+
+## JS Pattern
+
+```js
+const CLARIFY_SCENARIOS = {
+  scenarioKey: {
+    intro: "Question text shown in the card header",
+    options: [
+      { title: 'Short option label',  desc: 'One-line explanation of what this does' },
+      { title: 'Another option',      desc: 'Another explanation' },
+      { title: 'Third option',        desc: 'Third explanation' }
+    ]
+  }
+};
+
+function detectClarifyScenario(text) {
+  const t = text.toLowerCase();
+  // Return a key from CLARIFY_SCENARIOS, or null if the message is clear enough
+  if (['help', 'what can', 'what should', 'not sure', 'where do i', 'how do i', 'can you'].some(kw => t.includes(kw))) return 'help';
+  if (text.trim().split(/\s+/).length <= 3) return 'default';
+  return null;
+}
+
+function showClarifyPanel(question, options) {
+  // Build card with header, rows (incl. "Type something else"), footer/Skip
+  // Add class 'clarify-mode' to .sender-box (hides attach + mic, changes placeholder)
+  // Open panel: clarifyPanelEl.classList.add('open')
+}
+
+function hideClarifyPanel() {
+  clarifyPanelEl.classList.remove('open');
+  senderBoxEl.classList.remove('clarify-mode');
+  inputEl.placeholder = 'Ask me anything…';
+  setTimeout(() => { clarifyPanelEl.innerHTML = ''; }, 420);
+}
+```
+
+## Rules
+
+- **Always** call `hideClarifyPanel()` at the top of `sendMessage()` so the panel dismisses the moment a real message is sent.
+- Clicking an option auto-sends that option's `title` as a user message via `sendMessage()`.
+- Clicking "Type something else..." focuses the input — it does **not** send anything.
+- `Skip` simply calls `hideClarifyPanel()`.
+- Do **not** `appendAIBubble()` for clarify — the card itself is the Athena response.
+- `N` in the `1/N` counter = number of clickable options including "Type something else".
