@@ -116,6 +116,7 @@ body {
   align-items: flex-start;
   padding: 24px;
   padding-top: 72px;
+  padding-bottom: 16px; /* 16px gap between last message and everything below */
   gap: 16px;
   width: 430px;
   flex: 1;
@@ -140,13 +141,10 @@ body {
   align-self: stretch;
   margin-top: auto;
   transform: translateY(0);
-  transition: transform 0.28s ease-out, padding-bottom 0.55s cubic-bezier(0.22,1,0.36,1);
 }
-.messages.proc-active  { transform: translateY(-16px); }
-/* banner-active: push last message 16px above the banner.
-   Banner lives in .chat-prompt (outside the scroll container) so the scroll area
-   shrinks when it opens — padding-bottom:16px is exactly the gap we want. */
-.messages.banner-active { padding-bottom: 16px; }
+/* Gap rules are handled by chat-content-wrap padding-bottom:16px (thread→processing/banner)
+   and chat-processing-row.visible margin-bottom:16px (processing→banner).
+   banner-active and proc-active kept for JS hooks but no longer need CSS overrides. */
 
 /* notifViewerWrap — max-height drives the flex push; no overflow:hidden so card can emerge below */
 #notifViewerWrap {
@@ -434,7 +432,7 @@ body {
 }
 .chat-processing-row.visible {
   max-height: 36px;
-  margin-bottom: 8px;
+  margin-bottom: 16px; /* 16px gap between processing row and sticky banner */
   opacity: 1;
   pointer-events: auto;
 }
