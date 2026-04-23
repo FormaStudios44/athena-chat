@@ -1,0 +1,40 @@
+---
+description: Scroll-after-animation rule for notification cards that expand via max-height transition
+globs: ["**/*.html", "**/*.css", "**/*.tsx", "**/*.ts"]
+alwaysApply: false
+---
+
+# Notification Card Scroll-After-Animation
+
+When a notification card (or any element that animates in via `max-height`) is appended to a scrollable container, a **single** `scrollTop = scrollHeight` call before the animation runs is not enough — the container scrolls when the element is still 0px tall, then the card expands off-screen.
+
+## Rule
+
+Always fire a **second** scroll after the `max-height` transition completes, using a `setTimeout` that matches (or slightly exceeds) the transition duration.
+
+## JS Pattern
+
+```js
+function appendNotifViewer() {
+  // ...build and append the row...
+  messagesEl.appendChild(row);
+
+  // First scroll — positions the container at the bottom before animation
+  chatContent.scrollTop = chatContent.scrollHeight;
+
+  // Trigger entrance animation, then scroll again once the card has fully expanded
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const card = document.getElementById('notifViewer');
+    if (card) card.classList.add('show');
+    // Match the max-height transition duration (550ms) + small buffer
+    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 560);
+  }));
+}
+```
+
+## Rules
+
+- The `setTimeout` delay must be **≥ the `max-height` transition duration**. Add ~10ms buffer (e.g. 550ms transition → 560ms timeout).
+- Always do the first `scrollTop` synchronously after `appendChild` so the container is already near the bottom before the card grows.
+- The second scroll goes **inside** the `requestAnimationFrame` callback (after `.show` is added), not outside it.
+- This same pattern applies to any element that reveals itself via `max-height` animation — sticky banners, rec cards, toasts, etc.

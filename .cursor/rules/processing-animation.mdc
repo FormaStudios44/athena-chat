@@ -1,0 +1,73 @@
+---
+description: Processing state animation — thread slides up 16px when AI is working, slides back down when done
+globs: ["**/*.html", "**/*.css", "**/*.tsx", "**/*.ts"]
+alwaysApply: false
+---
+
+# Processing State Animation
+
+When the UI enters a processing/loading state (AI thinking, agent activating, response streaming), the chat thread should slide up **16px** to create visual breathing room for the processing indicator. It slides back to its original position when processing ends.
+
+## CSS Pattern
+
+Apply `transform: translateY(-16px)` on the message thread container using a class toggle. Never use `margin` or `padding` changes for this — transforms don't affect layout and are GPU-accelerated.
+
+```css
+.messages {
+  transform: translateY(0);
+  transition: transform 0.28s ease-out;
+}
+
+.messages.proc-active {
+  transform: translateY(-16px);
+}
+```
+
+## Processing Row
+
+The processing indicator row uses `max-height` + `opacity` to animate in/out without `display` toggling:
+
+```css
+.chat-processing-row {
+  display: flex;
+  max-height: 0;
+  margin-bottom: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: max-height 0.28s ease-out, opacity 0.2s ease, margin-bottom 0.28s ease-out;
+}
+
+.chat-processing-row.visible {
+  max-height: 36px;
+  margin-bottom: 8px;
+  opacity: 1;
+  pointer-events: auto;
+}
+```
+
+## JS Pattern
+
+Toggle both classes together. After the collapse transition (300ms), scroll the container to its new bottom.
+
+```js
+function showProcessing() {
+  processingRow.classList.add('visible');
+  messagesEl.classList.add('proc-active');
+  requestAnimationFrame(() => { chatContent.scrollTop = chatContent.scrollHeight; });
+}
+
+function hideProcessing() {
+  processingRow.classList.remove('visible');
+  messagesEl.classList.remove('proc-active');
+  setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 300);
+}
+```
+
+## Rules
+
+- Always animate both the thread translate and the processing row together as a unit.
+- Use `ease-out` timing — the movement should feel immediate and settle softly.
+- 0.28s duration for spatial movement, 0.2s for opacity.
+- Scroll to bottom with `requestAnimationFrame` when showing, and after a 300ms delay when hiding (to let the collapse finish first).
+- If the processing cycles through a finite set of status words, auto-dismiss and call `hideProcessing()` at the end — do not loop forever.
