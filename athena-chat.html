@@ -731,8 +731,20 @@ body {
 }
 .tc-check { color: #52C41A; font-size: 12px; line-height: 1; }
 
-/* ── Clarify Options ── */
-.clarify-options { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; width: 338px; }
+/* ── Clarify Panel (above input, no timestamp) ── */
+#clarifyPanel {
+  width: 382px;
+  max-height: 0; overflow: hidden; opacity: 0; margin-bottom: 0;
+  transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1),
+              opacity 0.3s ease, margin-bottom 0.35s ease;
+}
+#clarifyPanel.open { max-height: 320px; opacity: 1; margin-bottom: 16px; }
+.clarify-panel-inner { display: flex; flex-direction: column; gap: 8px; }
+.clarify-panel-question {
+  font-family: 'Lato', sans-serif; font-size: 13px; font-weight: 600;
+  color: rgba(0,0,0,0.75); line-height: 18px; padding: 0 2px;
+}
+.clarify-options { display: flex; flex-direction: column; gap: 6px; }
 .clarify-option {
   display: flex; align-items: center; gap: 10px;
   padding: 9px 12px; border: 1px solid #E8E8E8; border-radius: 8px;
@@ -1020,6 +1032,7 @@ body {
         </div>
       </div>
       <div id="notifViewerWrap"></div>
+      <div id="clarifyPanel"></div>
       <div class="sender-wrap">
         <div class="agent-picker" id="agentPicker">
           <div class="agent-picker-header">Agents</div>
@@ -1399,6 +1412,7 @@ function sendMessage() {
   const artifactType    = detectArtifactType(val);
   const clarifyScenario = !artifactType ? detectClarifyScenario(val) : null;
 
+  hideClarifyPanel();
   appendMessage(val, 'user');
   inputEl.value = '';
   sendBtn.disabled = true;
@@ -1412,8 +1426,7 @@ function sendMessage() {
   } else if (clarifyScenario) {
     const scenario = CLARIFY_SCENARIOS[clarifyScenario];
     startChatProcessing(['Thinking…'], () => {
-      appendAIBubble(scenario.intro);
-      appendClarifyOptions(scenario.options);
+      showClarifyPanel(scenario.intro, scenario.options);
       sendBtn.disabled = false;
     });
   } else {
@@ -2444,25 +2457,43 @@ function appendFinalApprovalCard(type) {
   }
 }
 
-// ── Clarify options ──
-function appendClarifyOptions(options) {
-  const lastContent = messagesEl.querySelector('.bubble-row.bubble-ai:last-child .bubble-content');
-  if (!lastContent) return;
-  const block = document.createElement('div');
-  block.className = 'clarify-options';
+// ── Clarify panel (above input, no timestamp) ──
+const clarifyPanelEl = document.getElementById('clarifyPanel');
+
+function showClarifyPanel(question, options) {
+  const inner = document.createElement('div');
+  inner.className = 'clarify-panel-inner';
+
+  const q = document.createElement('div');
+  q.className = 'clarify-panel-question';
+  q.textContent = question;
+  inner.appendChild(q);
+
+  const opts = document.createElement('div');
+  opts.className = 'clarify-options';
   options.forEach((opt, i) => {
     const btn = document.createElement('button');
     btn.className = 'clarify-option';
     btn.innerHTML = '<span class="clarify-num">' + (i + 1) + '</span>' + escHtml(opt);
     btn.addEventListener('click', () => {
-      block.querySelectorAll('.clarify-option').forEach(b => b.disabled = true);
+      hideClarifyPanel();
       inputEl.value = opt;
       sendMessage();
     });
-    block.appendChild(btn);
+    opts.appendChild(btn);
   });
-  lastContent.appendChild(block);
-  setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 50);
+  inner.appendChild(opts);
+
+  clarifyPanelEl.innerHTML = '';
+  clarifyPanelEl.appendChild(inner);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    clarifyPanelEl.classList.add('open');
+  }));
+}
+
+function hideClarifyPanel() {
+  clarifyPanelEl.classList.remove('open');
+  setTimeout(() => { clarifyPanelEl.innerHTML = ''; }, 400);
 }
 
 function buildArtifactCard(tmpl) {
