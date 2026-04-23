@@ -142,8 +142,10 @@ body {
   transition: transform 0.28s ease-out, padding-bottom 0.55s cubic-bezier(0.22,1,0.36,1);
 }
 .messages.proc-active  { transform: translateY(-16px); }
-/* banner-active: push last message 16px above the banner (44px height + 16px gap) */
-.messages.banner-active { padding-bottom: 60px; }
+/* banner-active: push last message 16px above the banner.
+   Banner lives in .chat-prompt (outside the scroll container) so the scroll area
+   shrinks when it opens — padding-bottom:16px is exactly the gap we want. */
+.messages.banner-active { padding-bottom: 16px; }
 
 /* notifViewerWrap — max-height drives the flex push; no overflow:hidden so card can emerge below */
 #notifViewerWrap {
@@ -663,6 +665,22 @@ body {
 .notif-card-btn:hover { opacity: 0.8; }
 .notif-card-btn.primary { background: rgba(0,0,0,0.88); color: #fff; }
 .notif-card-btn.ghost   { background: transparent; color: rgba(0,0,0,0.35); text-decoration: underline; }
+.notif-card-why {
+  display: inline-block; padding: 0 12px 10px;
+  font-family: 'Lato', sans-serif; font-size: 11px;
+  color: rgba(0,0,0,0.35); cursor: pointer;
+  border: none; background: transparent; text-align: left; transition: color 0.2s;
+}
+.notif-card-why:hover { color: rgba(0,0,0,0.65); }
+.notif-card-why-panel {
+  max-height: 0; overflow: hidden; opacity: 0;
+  font-family: 'Lato', sans-serif; font-size: 11px; line-height: 17px;
+  color: rgba(0,0,0,0.5); padding: 0 12px;
+  background: rgba(0,0,0,0.02); border-top: 0px solid #F0F0F0;
+  transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.35s ease,
+              padding 0.3s ease, border-top-width 0.3s ease;
+}
+.notif-card-why-panel.open { max-height: 120px; opacity: 1; padding: 8px 12px 10px; border-top-width: 1px; }
 .notif-card-content { transition: opacity 0.14s ease; }
 .notif-card-content.fading { opacity: 0; }
 .notif-nav {
@@ -1541,6 +1559,7 @@ const QUEUE = [
     category: 'Error',
     title: 'Email send failed — invalid suppression list',
     desc: '"July Promo" could not send to 4,218 contacts due to a malformed suppression file.',
+    why: 'Athena detected malformed email syntax on rows 12–14 of the suppression file. This blocked validation and caused the entire send to fail rather than skipping only the affected rows.',
     cta: 'Fix Now',
     dismiss: 'Dismiss'
   },
@@ -1549,6 +1568,7 @@ const QUEUE = [
     category: 'Critical Status',
     title: 'Audience sync running 4× slower than expected',
     desc: '"Warm Weather Shoppers" is syncing at 23% of normal speed. Delivery may be impacted.',
+    why: 'Pipeline throughput dropped at the source API — this 3.2M-record segment is being throttled. Normal sync completes in under 4 minutes; at current speed it will take 17+ minutes.',
     cta: 'View Status',
     dismiss: 'Dismiss'
   },
@@ -1557,6 +1577,7 @@ const QUEUE = [
     category: 'Actionable Event',
     title: 'Campaign budget nearly depleted',
     desc: '"Summer Apparel Push" has 8% budget remaining and will pause automatically in ~2 hours.',
+    why: 'Spend velocity increased 34% over the last 6 hours due to a boost in audience match rates. At this pace, budget will be exhausted before the campaign end date.',
     cta: 'Add Budget',
     dismiss: 'Dismiss'
   },
@@ -1565,6 +1586,7 @@ const QUEUE = [
     category: 'Reminder',
     title: 'Q3 performance review is overdue',
     desc: "You haven't reviewed Q3 campaign results in 14 days. Three campaigns closed without analysis.",
+    why: 'Reviewing performance within 2 weeks of campaign close improves future targeting accuracy. Two of the three unreviewed campaigns significantly underperformed their benchmarks.',
     cta: 'Review Now',
     dismiss: 'Snooze 1 day'
   },
@@ -1573,6 +1595,7 @@ const QUEUE = [
     category: 'Directed Activity',
     title: 'Jordan mentioned you in Campaign Architect',
     desc: '"@Roman Gun can you review the lookalike audience before we launch Friday? Needs your sign-off."',
+    why: 'Your sign-off is required before the lookalike segment can be activated. The audience targets 2.4M users — Athena rates confidence at 78% match against your top converters.',
     cta: 'View Thread',
     dismiss: 'Dismiss'
   }
@@ -1628,8 +1651,14 @@ function triggerStickyBanner() {
   wrap.removeAttribute('style');  // clear any lingering inline opacity:0 before entrance
   requestAnimationFrame(() => requestAnimationFrame(() => {
     wrap.classList.add('show');
-    // Re-scroll after padding expands so last message clears the banner
-    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 600);
+    // Continuously scroll to bottom for the full 0.9s banner transition so the
+    // last message tracks the shrinking scroll area in real time
+    const start = performance.now();
+    const dur   = 940;
+    (function tick(ts) {
+      chatContent.scrollTop = chatContent.scrollHeight;
+      if (ts - start < dur) requestAnimationFrame(tick);
+    })(performance.now());
   }));
 }
 
@@ -1703,6 +1732,7 @@ function notifCardHTML(notif, idx) {
           '<button class="notif-card-btn primary" id="notifCta"     onclick="handleNotifCta()">' + escHtml(notif.cta)     + '</button>' +
           '<button class="notif-card-btn ghost"   id="notifDismiss" onclick="dismissNotif()">'  + escHtml(notif.dismiss) + '</button>' +
         '</div>' +
+        (notif.why ? '<button class="notif-card-why" id="notifWhyBtn" onclick="toggleNotifWhy(this)">Why this</button><div class="notif-card-why-panel" id="notifWhyPanel">' + escHtml(notif.why) + '</div>' : '') +
       '</div>' +
       '<div class="notif-nav">' +
         '<button class="notif-nav-btn" id="notifPrevBtn" onclick="navigateNotif(-1)" disabled>' + PREV_SVG + '</button>' +
@@ -1770,6 +1800,15 @@ function applyNotifContent(idx) {
   document.getElementById('notifCta').textContent     = notif.cta;
   document.getElementById('notifDismiss').textContent = notif.dismiss;
   document.getElementById('notifCount').textContent   = pos + ' of ' + total;
+
+  // Sync why panel — reset to closed state on navigation and update text
+  const whyBtn   = document.getElementById('notifWhyBtn');
+  const whyPanel = document.getElementById('notifWhyPanel');
+  if (whyBtn && whyPanel) {
+    whyBtn.textContent = 'Why this';
+    whyPanel.classList.remove('open');
+    whyPanel.textContent = notif.why || '';
+  }
 
   // prev/next disabled state — skip dismissed
   let hasPrev = false, hasNext = false;
@@ -1927,6 +1966,13 @@ function toggleRecWhy(id, btn) {
   if (!panel) return;
   panel.classList.toggle('open');
   btn.textContent = panel.classList.contains('open') ? 'Hide' : 'Why this';
+}
+
+function toggleNotifWhy(btn) {
+  const panel = document.getElementById('notifWhyPanel');
+  if (!panel) return;
+  panel.classList.toggle('open');
+  btn.textContent = panel.classList.contains('open') ? 'Hide reasoning' : 'Why this';
 }
 
 function escHtml(str) {
