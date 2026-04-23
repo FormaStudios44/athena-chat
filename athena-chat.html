@@ -139,9 +139,18 @@ body {
   align-self: stretch;
   margin-top: auto;
   transform: translateY(0);
-  transition: transform 0.28s ease-out;
+  transition: transform 0.28s ease-out, padding-bottom 0.55s cubic-bezier(0.22,1,0.36,1);
 }
-.messages.proc-active { transform: translateY(-16px); }
+.messages.proc-active  { transform: translateY(-16px); }
+/* banner-active: push last message 16px above the banner (44px height + 16px gap) */
+.messages.banner-active { padding-bottom: 60px; }
+
+/* notifViewerWrap — max-height drives the flex push; no overflow:hidden so card can emerge below */
+#notifViewerWrap {
+  max-height: 0;
+  transition: max-height 0.55s cubic-bezier(0.22,1,0.36,1);
+}
+#notifViewerWrap.open { max-height: 400px; }
 .bubble-row {
   display: flex; flex-direction: column;
   align-items: flex-start;
@@ -598,18 +607,21 @@ body {
               padding 0.3s ease, border-top-width 0.3s ease;
 }
 .rec-card-why-panel.open { max-height: 100px; opacity: 1; padding: 8px 12px 10px; border-top-width: 1px; }
+.rec-card.applied .rec-card-btn { pointer-events: none; cursor: default; }
+.rec-card.applied .rec-card-btn.primary { background: #389E0D; }
+.rec-card.applied .rec-card-btn.ghost   { opacity: 0.3; }
 
 /* ── Notification card ── */
 .notif-card {
   border: 1px solid #E8E8E8; border-radius: 8px;
   overflow: hidden; width: 382px;
   margin-bottom: 16px;
+  position: relative; z-index: 0;   /* sits behind the input (z-index:1) during entrance */
   opacity: 0; pointer-events: none;
-  transform: translateY(20px) scale(0.97);
-  transform-origin: bottom center;
-  transition: opacity 0.28s ease-out, transform 0.38s cubic-bezier(0.22,1,0.36,1);
+  transform: translateY(calc(100% + 64px));  /* starts below input level; clipped by .chat-card overflow:hidden */
+  transition: opacity 0.3s ease-out 0.08s, transform 0.55s cubic-bezier(0.22,1,0.36,1);
 }
-.notif-card.show { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+.notif-card.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
 .notif-card-header {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 12px; background: rgba(0,0,0,0.015); border-bottom: 1px solid #F0F0F0;
@@ -1568,18 +1580,79 @@ const QUEUE = [
 let notifIdx = 0;
 let dismissedNotifs = new Set();
 
+const NOTIF_CTA_RESPONSES = {
+  error: {
+    proc: ['Fixing suppression list', 'Validating contacts', 'Requeueing send'],
+    msg:  'Fixed. The malformed suppression file has been corrected — "July Promo" has been re-queued and will begin sending to the 4,218 affected contacts within the next few minutes.'
+  },
+  critical: {
+    proc: ['Checking sync pipeline', 'Diagnosing bottleneck', 'Escalating to team'],
+    msg:  'On it. I\'ve flagged the sync delay to the data pipeline team. "Warm Weather Shoppers" is now recovering and syncing at normal speed — delivery timeline is back on track.'
+  },
+  actionable: {
+    proc: ['Adding budget', 'Updating campaign settings', 'Confirming changes'],
+    msg:  'Done. Budget has been added to "Summer Apparel Push". The campaign will continue running without interruption — I\'ll notify you when the new budget threshold is approaching.'
+  },
+  reminder: {
+    proc: ['Loading Q3 campaigns', 'Pulling performance data', 'Generating summary'],
+    msg:  'Here\'s your Q3 snapshot: 3 campaigns closed — "Back to School" hit 142% of goal, "Fall Preview" came in at 98%, and "Clearance Event" underperformed at 61%. Want a full breakdown with recommendations?'
+  },
+  directed: {
+    proc: ['Opening Campaign Architect', 'Loading thread context', 'Pulling audience data'],
+    msg:  'You\'re now in context on Jordan\'s thread. The lookalike audience is sized at 2.4M with a 78% confidence match against your top converters. Looks strong — ready to approve when you are.'
+  }
+};
+
+function handleNotifCta() {
+  const notif = QUEUE[notifIdx];
+  const response = NOTIF_CTA_RESPONSES[notif.type];
+  if (!response) { dismissNotif(); return; }
+
+  // Dismiss this notification and collapse the viewer
+  dismissedNotifs.add(notifIdx);
+  collapseNotifViewer();
+
+  // Wait for viewer to finish collapsing, then process + respond
+  setTimeout(() => {
+    startChatProcessing(response.proc, () => {
+      appendAIBubble(response.msg);
+    });
+  }, 450);
+}
+
 function triggerStickyBanner() {
   dismissedNotifs = new Set();
   updateBanner();
+  messagesEl.classList.add('banner-active');
+  const wrap = document.getElementById('stickyBannerWrap');
+  wrap.removeAttribute('style');  // clear any lingering inline opacity:0 before entrance
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    document.getElementById('stickyBannerWrap').classList.add('show');
+    wrap.classList.add('show');
+    // Re-scroll after padding expands so last message clears the banner
+    setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 600);
   }));
 }
 
 function onStickyBannerClick() {
-  hideBanner(); // hide while the viewer is open
-  notifIdx = 0;
-  appendNotifViewer();
+  // Step 1 — slide the banner DOWN and fade it out
+  const wrap = document.getElementById('stickyBannerWrap');
+  wrap.style.transition = 'transform 0.22s ease-in, opacity 0.18s ease-in';
+  wrap.style.transform  = 'translateY(16px)';
+  wrap.style.opacity    = '0';
+
+  // Step 2 — once banner is mostly gone, hide it and open the notif card.
+  // Intentionally keep inline opacity:0 so the 0.9s max-height CSS transition
+  // can't cause a flash as the wrapper collapses. Inline opacity is only cleared
+  // when the banner is explicitly shown again (triggerStickyBanner / collapseNotifViewer).
+  setTimeout(() => {
+    wrap.classList.remove('show');
+    messagesEl.classList.remove('banner-active');
+    wrap.style.transition = 'none';
+    wrap.style.transform  = '';
+    // opacity: 0 stays inline — suppresses CSS opacity transition during collapse
+    notifIdx = 0;
+    appendNotifViewer();
+  }, 220);
 }
 
 function onMenuClick() {
@@ -1592,6 +1665,7 @@ function onMenuClick() {
 
 function hideBanner() {
   document.getElementById('stickyBannerWrap').classList.remove('show');
+  messagesEl.classList.remove('banner-active');
 }
 
 function updateBanner() {
@@ -1626,8 +1700,8 @@ function notifCardHTML(notif, idx) {
           '<div class="notif-card-desc"  id="notifDesc">'  + highlightMentions(notif.desc) + '</div>' +
         '</div>' +
         '<div class="notif-card-actions">' +
-          '<button class="notif-card-btn primary" id="notifCta"     onclick="dismissNotif()">' + escHtml(notif.cta)     + '</button>' +
-          '<button class="notif-card-btn ghost"   id="notifDismiss" onclick="dismissNotif()">' + escHtml(notif.dismiss) + '</button>' +
+          '<button class="notif-card-btn primary" id="notifCta"     onclick="handleNotifCta()">' + escHtml(notif.cta)     + '</button>' +
+          '<button class="notif-card-btn ghost"   id="notifDismiss" onclick="dismissNotif()">'  + escHtml(notif.dismiss) + '</button>' +
         '</div>' +
       '</div>' +
       '<div class="notif-nav">' +
@@ -1643,10 +1717,21 @@ function appendNotifViewer() {
   const wrap = document.getElementById('notifViewerWrap');
   wrap.innerHTML = notifCardHTML(QUEUE[0], 0);
 
-  // Entrance animation
   requestAnimationFrame(() => requestAnimationFrame(() => {
+    // Expand wrapper — this shrinks chat-content-wrap via flex, pushing the thread up
+    wrap.classList.add('open');
+    // Animate the card in simultaneously
     const card = document.getElementById('notifViewer');
     if (card) card.classList.add('show');
+
+    // Continuously scroll to bottom for the animation duration so the thread
+    // tracks the push in real time and the last message ends up 16px above the card
+    const start = performance.now();
+    const dur   = 580; // slightly longer than the 0.55s transition
+    (function tick(ts) {
+      chatContent.scrollTop = chatContent.scrollHeight;
+      if (ts - start < dur) requestAnimationFrame(tick);
+    })(performance.now());
   }));
 }
 
@@ -1654,14 +1739,18 @@ function collapseNotifViewer() {
   const card = document.getElementById('notifViewer');
   if (!card) return;
   card.classList.remove('show');
+  const notifWrap = document.getElementById('notifViewerWrap');
+  notifWrap.classList.remove('open');
   setTimeout(() => {
-    document.getElementById('notifViewerWrap').innerHTML = '';
+    notifWrap.innerHTML = '';
     // Restore banner if notifications remain uncleared
     const remaining = QUEUE.length - dismissedNotifs.size;
     if (remaining > 0) {
       updateBanner();
+      const bannerWrap = document.getElementById('stickyBannerWrap');
+      bannerWrap.removeAttribute('style');  // clear inline opacity:0 before re-entrance
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        document.getElementById('stickyBannerWrap').classList.add('show');
+        bannerWrap.classList.add('show');
       }));
     }
   }, 420);
@@ -1724,6 +1813,70 @@ function dismissNotif() {
   setTimeout(() => { notifIdx = next; applyNotifContent(next); if (content) content.classList.remove('fading'); }, 140);
 }
 
+// ── Programmatic processing trigger (used by rec card CTA etc.) ──
+function startChatProcessing(words, onDone) {
+  if (chatProcTimer) { clearInterval(chatProcTimer); chatProcTimer = null; }
+  const row    = document.getElementById('chatProcessingRow');
+  const wordEl = document.getElementById('chatProcWord');
+  const dotsEl = document.getElementById('chatProcDots');
+  if (wordEl) wordEl.textContent = words[0];
+  if (dotsEl) dotsEl.textContent = '';
+  row.classList.add('visible');
+  messagesEl.classList.add('proc-active');
+  requestAnimationFrame(() => { chatContent.scrollTop = chatContent.scrollHeight; });
+  let wi = 0, di = 0;
+  chatProcTimer = setInterval(() => {
+    di = (di + 1) % 4;
+    if (dotsEl) dotsEl.textContent = ['.','..','...',''][di];
+    if (di === 0) {
+      wi++;
+      if (wi >= words.length) {
+        clearInterval(chatProcTimer); chatProcTimer = null;
+        row.classList.remove('visible');
+        messagesEl.classList.remove('proc-active');
+        setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; if (onDone) onDone(); }, 300);
+        return;
+      }
+      if (wordEl) wordEl.textContent = words[wi];
+    }
+  }, 520);
+}
+
+function applyRecSegment(cardId) {
+  const card = document.getElementById(cardId);
+  if (!card || card.classList.contains('applied')) return;
+
+  // Grab the segment title before we mutate the card
+  const segTitle = card.querySelector('.rec-card-title')
+    ? card.querySelector('.rec-card-title').textContent
+    : 'the segment';
+
+  // Mark card as applied right away
+  card.classList.add('applied');
+  const primaryBtn = card.querySelector('.rec-card-btn.primary');
+  if (primaryBtn) primaryBtn.textContent = 'Applying…';
+  const badge = card.querySelector('.rec-card-badge');
+  if (badge) badge.textContent = 'Applying…';
+
+  // User action bubble
+  appendMessage('Apply segment', 'user');
+
+  // Processing → confirmation
+  startChatProcessing(
+    ['Applying segment', 'Configuring audience', 'Almost done'],
+    () => {
+      // Update card to final applied state
+      if (primaryBtn) primaryBtn.textContent = 'Applied ✓';
+      if (badge) {
+        badge.textContent = 'Applied ✓';
+        badge.style.cssText = 'color:#389E0D;background:#F6FFED;border-color:#B7EB8F';
+      }
+      // AI confirmation
+      appendAIBubble('Done! "' + segTitle + '" has been applied to your campaign. The expanded audience typically goes live within 2–5 minutes — I\'ll surface a status update once traffic starts flowing.');
+    }
+  );
+}
+
 function appendAIBubble(text, rec) {
   const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
   const row = document.createElement('div');
@@ -1743,7 +1896,7 @@ function appendAIBubble(text, rec) {
           '<div class="rec-card-desc">'  + escHtml(rec.desc)  + '</div>' +
         '</div>' +
         '<div class="rec-card-actions">' +
-          '<button class="rec-card-btn primary">' + escHtml(rec.cta)     + '</button>' +
+          '<button class="rec-card-btn primary" onclick="applyRecSegment(\'recCard' + whyId + '\')">' + escHtml(rec.cta) + '</button>' +
           '<button class="rec-card-btn ghost">'   + escHtml(rec.dismiss) + '</button>' +
         '</div>' +
         '<button class="rec-card-why" onclick="toggleRecWhy(\'' + whyId + '\',this)">Why this</button>' +
