@@ -705,6 +705,20 @@ body {
 .artifact-badge-built { background: #F6FFED; color: #389E0D; border: 0.5px solid #B7EB8F; }
 .athena-artifact-btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 
+/* ── Artifact Chart ── */
+.artifact-chart-wrap { padding: 6px 2px 2px; }
+.artifact-chart-toggle { display: flex; gap: 4px; margin-bottom: 8px; }
+.achart-tab {
+  font-family: 'Lato', sans-serif; font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+  border: 1px solid #E8E8E8; background: transparent;
+  color: rgba(0,0,0,0.45); cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.achart-tab.active { background: rgba(0,0,0,0.88); color: #fff; border-color: rgba(0,0,0,0.88); }
+.achart-tab:hover:not(.active) { background: rgba(0,0,0,0.04); }
+.artifact-chart-canvas svg { display: block; width: 100%; }
+
 /* ── Thought Chain ── */
 .thought-chain {
   margin-top: 8px; border: 1px solid #F0F0F0; border-radius: 8px;
@@ -2140,13 +2154,12 @@ const ARTIFACT_TEMPLATES = {
   report: {
     label: 'Report', badge: 'Draft', badgeClass: 'report',
     title: 'Q2 2026 Campaign Performance Report',
-    desc: 'Full-funnel breakdown across email, paid social, and display with channel-level ROAS and spend efficiency scores.',
-    rows: [
-      { lbl:'Email',       pct:44, amt:'$790K' },
-      { lbl:'Paid Social', pct:30, amt:'$540K' },
-      { lbl:'Display',     pct:18, amt:'$324K' },
-      { lbl:'CTV',         pct: 8, amt:'$144K' }
-    ],
+    desc: 'Full-funnel breakdown across email, paid social, and display — with channel-level ROAS and spend efficiency scores.',
+    chartData: {
+      labels:  ['Email', 'Paid Social', 'Display', 'CTV'],
+      values:  [44, 30, 18, 8],
+      amounts: ['$790K', '$540K', '$324K', '$144K']
+    },
     cta: 'Export Report', dismiss: 'Edit',
     proc: ['Pulling data', 'Running analysis', 'Building report'],
     reply: "Here's your Q2 performance report — full-funnel breakdown with channel-level ROAS and spend efficiency scores."
@@ -2223,12 +2236,21 @@ const CLARIFY_SCENARIOS = {
       { title: 'Build or refine an audience segment',      desc: "Use Zeta's Data Cloud to define your target audience" },
       { title: 'Map out a customer journey or automation', desc: 'Design a multi-step engagement flow with triggers and actions' }
     ]
+  },
+  report: {
+    intro: "Sure, I can build that. What type of report are you looking for?",
+    options: [
+      { title: 'Campaign Performance Report', desc: 'Full-funnel ROAS breakdown with channel-level spend efficiency' },
+      { title: 'Audience Insights Report',    desc: 'Segment composition, overlap analysis, and signal strength scores' },
+      { title: 'Revenue & Attribution Report', desc: 'Conversion tracking, revenue attribution, and pipeline analysis' }
+    ]
   }
 };
 
 function detectClarifyScenario(text) {
   const t = text.toLowerCase();
   if (['help', 'what can', 'what should', 'not sure', 'where do i', 'how do i', 'can you'].some(kw => t.includes(kw))) return 'help';
+  if (t.includes('report')) return 'report';
   if (text.trim().split(/\s+/).length <= 3) return 'default';
   return null;
 }
@@ -2238,7 +2260,12 @@ function detectArtifactType(text) {
   if (t.includes('media plan') || (t.includes('media') && !t.includes('social media'))) return 'media';
   if (t.includes('dashboard'))  return 'dashboard';
   if (t.includes('slide'))      return 'slides';
-  if (t.includes('report'))     return 'report';
+  // "report" only triggers if the request includes specific context — otherwise clarify first
+  if (t.includes('report') && (
+    t.includes('campaign') || t.includes('performance') || t.includes('channel') ||
+    t.includes('q1') || t.includes('q2') || t.includes('q3') || t.includes('q4') ||
+    t.includes('audience') || t.includes('revenue') || t.includes('attribution')
+  )) return 'report';
   if (t.includes('audience'))   return 'audience';
   if (t.includes('forecast'))   return 'forecast';
   if (t.includes('automat'))    return 'automation';
@@ -2533,6 +2560,7 @@ function appendFinalApprovalCard(type) {
       const card = document.getElementById(id);
       if (card) requestAnimationFrame(() => requestAnimationFrame(() => {
         card.classList.add('show');
+        if (tmpl.chartData) wireChartToggles(card, tmpl.chartData);
         setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 420);
       }));
     }, 150);
@@ -2618,6 +2646,101 @@ function hideClarifyPanel() {
   setTimeout(() => { clarifyPanelEl.innerHTML = ''; }, 420);
 }
 
+// ── Chart rendering ──
+const CHART_COLORS = ['#1677FF', '#722ED1', '#389E0D', '#D46B08'];
+const CHART_W = 310;
+
+function renderArtifactChart(container, type, data) {
+  const { labels, values, amounts } = data;
+  const colors = CHART_COLORS;
+  const maxV   = Math.max(...values);
+  let svg = '';
+
+  if (type === 'bar') {
+    const H = 100, barW = 48, gap = 14;
+    const totalBarsW = labels.length * barW + (labels.length - 1) * gap;
+    const startX = (CHART_W - totalBarsW) / 2;
+    const barMaxH = 58, barBaseY = 70;
+    svg = '<svg width="' + CHART_W + '" height="' + H + '" viewBox="0 0 ' + CHART_W + ' ' + H + '">';
+    [0, 0.5, 1].forEach(t => {
+      const y = barBaseY - barMaxH * t;
+      svg += '<line x1="' + startX + '" y1="' + y.toFixed(1) + '" x2="' + (startX + totalBarsW) + '" y2="' + y.toFixed(1) + '" stroke="#F0F0F0" stroke-width="1"/>';
+    });
+    labels.forEach((lbl, i) => {
+      const x  = startX + i * (barW + gap);
+      const bh = Math.max(2, Math.round(values[i] * barMaxH / maxV));
+      const by = barBaseY - bh;
+      svg += '<rect x="' + x + '" y="' + by + '" width="' + barW + '" height="' + bh + '" rx="3" fill="' + colors[i] + '"/>';
+      svg += '<text x="' + (x + barW / 2) + '" y="' + (by - 4) + '" text-anchor="middle" font-size="9" font-weight="700" fill="' + colors[i] + '" font-family="Lato,sans-serif">' + values[i] + '%</text>';
+      svg += '<text x="' + (x + barW / 2) + '" y="85" text-anchor="middle" font-size="9" fill="rgba(0,0,0,0.45)" font-family="Lato,sans-serif">' + escHtml(lbl) + '</text>';
+    });
+    svg += '</svg>';
+
+  } else if (type === 'line') {
+    const H = 110, padL = 8, padR = 8, padT = 22, padB = 26;
+    const innerW = CHART_W - padL - padR, innerH = H - padT - padB;
+    const pts = values.map((v, i) => ({
+      x: padL + (i / (values.length - 1)) * innerW,
+      y: padT + innerH - (v / maxV) * innerH
+    }));
+    const lineD = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ');
+    const areaD = 'M' + padL + ' ' + (padT + innerH) + ' ' + lineD.slice(1) + ' L' + (padL + innerW) + ' ' + (padT + innerH) + ' Z';
+    svg = '<svg width="' + CHART_W + '" height="' + H + '" viewBox="0 0 ' + CHART_W + ' ' + H + '">';
+    [0, 0.5, 1].forEach(t => {
+      const y = (padT + innerH - innerH * t).toFixed(1);
+      svg += '<line x1="' + padL + '" y1="' + y + '" x2="' + (padL + innerW) + '" y2="' + y + '" stroke="#F0F0F0" stroke-width="1"/>';
+    });
+    svg += '<path d="' + areaD + '" fill="#1677FF" fill-opacity="0.08"/>';
+    svg += '<path d="' + lineD + '" fill="none" stroke="#1677FF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    pts.forEach((p, i) => {
+      svg += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="4" fill="' + colors[i] + '" stroke="#fff" stroke-width="1.5"/>';
+      svg += '<text x="' + p.x.toFixed(1) + '" y="' + (p.y - 8).toFixed(1) + '" text-anchor="middle" font-size="9" font-weight="700" fill="' + colors[i] + '" font-family="Lato,sans-serif">' + values[i] + '%</text>';
+      svg += '<text x="' + p.x.toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="9" fill="rgba(0,0,0,0.45)" font-family="Lato,sans-serif">' + escHtml(labels[i]) + '</text>';
+    });
+    svg += '</svg>';
+
+  } else if (type === 'pie') {
+    const H = 110, cx = 64, cy = 55, R = 42, ri = 23;
+    const total = values.reduce((a, b) => a + b, 0);
+    let ang = -Math.PI / 2;
+    svg = '<svg width="' + CHART_W + '" height="' + H + '" viewBox="0 0 ' + CHART_W + ' ' + H + '">';
+    values.forEach((v, i) => {
+      const sweep = (v / total) * 2 * Math.PI;
+      const end   = ang + sweep;
+      const large = sweep > Math.PI ? 1 : 0;
+      const ox1 = +(cx + R  * Math.cos(ang)).toFixed(2), oy1 = +(cy + R  * Math.sin(ang)).toFixed(2);
+      const ox2 = +(cx + R  * Math.cos(end)).toFixed(2), oy2 = +(cy + R  * Math.sin(end)).toFixed(2);
+      const ix1 = +(cx + ri * Math.cos(ang)).toFixed(2), iy1 = +(cy + ri * Math.sin(ang)).toFixed(2);
+      const ix2 = +(cx + ri * Math.cos(end)).toFixed(2), iy2 = +(cy + ri * Math.sin(end)).toFixed(2);
+      svg += '<path d="M' + ix1 + ',' + iy1 + ' L' + ox1 + ',' + oy1 + ' A' + R + ',' + R + ' 0 ' + large + ',1 ' + ox2 + ',' + oy2 + ' L' + ix2 + ',' + iy2 + ' A' + ri + ',' + ri + ' 0 ' + large + ',0 ' + ix1 + ',' + iy1 + ' Z" fill="' + colors[i] + '"/>';
+      ang = end;
+    });
+    svg += '<text x="' + cx + '" y="' + (cy + 4) + '" text-anchor="middle" font-size="11" font-weight="700" fill="rgba(0,0,0,0.88)" font-family="Lato,sans-serif">100%</text>';
+    const legendX = 148;
+    labels.forEach((lbl, i) => {
+      const ly = 16 + i * 22;
+      svg += '<rect x="' + legendX + '" y="' + (ly - 8) + '" width="8" height="8" rx="2" fill="' + colors[i] + '"/>';
+      svg += '<text x="' + (legendX + 13) + '" y="' + ly + '" font-size="10" fill="rgba(0,0,0,0.65)" font-family="Lato,sans-serif">' + escHtml(lbl) + '</text>';
+      svg += '<text x="' + (CHART_W - 4) + '" y="' + ly + '" text-anchor="end" font-size="10" font-weight="700" fill="rgba(0,0,0,0.88)" font-family="Lato,sans-serif">' + escHtml(amounts[i]) + '</text>';
+    });
+    svg += '</svg>';
+  }
+  container.innerHTML = svg;
+}
+
+function wireChartToggles(card, chartData) {
+  const canvas = card.querySelector('.artifact-chart-canvas');
+  if (!canvas) return;
+  renderArtifactChart(canvas, 'bar', chartData);
+  card.querySelectorAll('.achart-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      card.querySelectorAll('.achart-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderArtifactChart(canvas, tab.dataset.chart, chartData);
+    });
+  });
+}
+
 function buildArtifactCard(tmpl) {
   let bodyContent = '';
   if (tmpl.metrics) {
@@ -2646,6 +2769,16 @@ function buildArtifactCard(tmpl) {
       '</div>'
     ).join('');
     bodyContent = '<div class="athena-artifact-rows">' + rows + '</div>';
+  } else if (tmpl.chartData) {
+    bodyContent =
+      '<div class="artifact-chart-wrap">' +
+        '<div class="artifact-chart-toggle">' +
+          '<button class="achart-tab active" data-chart="bar">Bar</button>' +
+          '<button class="achart-tab" data-chart="line">Line</button>' +
+          '<button class="achart-tab" data-chart="pie">Pie</button>' +
+        '</div>' +
+        '<div class="artifact-chart-canvas"></div>' +
+      '</div>';
   }
 
   const id = 'artifact-' + Date.now();
@@ -2687,6 +2820,7 @@ function appendArtifact(type) {
       const card = document.getElementById(id);
       if (card) requestAnimationFrame(() => requestAnimationFrame(() => {
         card.classList.add('show');
+        if (tmpl.chartData) wireChartToggles(card, tmpl.chartData);
         setTimeout(() => { chatContent.scrollTop = chatContent.scrollHeight; }, 420);
       }));
     }, 150);
