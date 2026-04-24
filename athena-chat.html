@@ -638,6 +638,9 @@ body {
 .artifact-badge-campaign   { background: #F6FFED; color: #389E0D; border: 0.5px solid #B7EB8F; }
 .artifact-badge-journey    { background: #E6FFFB; color: #08979C; border: 0.5px solid #87E8DE; }
 .artifact-badge-media      { background: #FFF1F0; color: #CF1322; border: 0.5px solid #FFA39E; }
+.artifact-badge-report     { background: #F0F5FF; color: #2F54EB; border: 0.5px solid #ADC6FF; }
+.artifact-badge-dashboard  { background: #FFF0F6; color: #C41D7F; border: 0.5px solid #FFADD2; }
+.artifact-badge-slides     { background: #FFFBE6; color: #D48806; border: 0.5px solid #FFE58F; }
 .athena-artifact-body { padding: 10px 12px 8px; display: flex; flex-direction: column; gap: 4px; }
 .athena-artifact-title {
   font-family: 'Lato', sans-serif; font-size: 13px; font-weight: 700;
@@ -2133,6 +2136,50 @@ const ARTIFACT_TEMPLATES = {
     cta: 'Approve Plan', dismiss: 'Revise',
     proc: ['Analyzing channels', 'Optimizing allocation', 'Building media plan'],
     reply: "Here's your Q3 media plan. Email leads at 40% given its ROAS efficiency, with paid social and display rounding out the mix."
+  },
+  report: {
+    label: 'Report', badge: 'Draft', badgeClass: 'report',
+    title: 'Q2 2026 Campaign Performance Report',
+    desc: 'Full-funnel breakdown across email, paid social, and display with channel-level ROAS and spend efficiency scores.',
+    rows: [
+      { lbl:'Email',       pct:44, amt:'$790K' },
+      { lbl:'Paid Social', pct:30, amt:'$540K' },
+      { lbl:'Display',     pct:18, amt:'$324K' },
+      { lbl:'CTV',         pct: 8, amt:'$144K' }
+    ],
+    cta: 'Export Report', dismiss: 'Edit',
+    proc: ['Pulling data', 'Running analysis', 'Building report'],
+    reply: "Here's your Q2 performance report — full-funnel breakdown with channel-level ROAS and spend efficiency scores."
+  },
+  dashboard: {
+    label: 'Dashboard', badge: 'Live', badgeClass: 'dashboard',
+    title: 'Campaign Performance Dashboard',
+    desc: 'Real-time view across all active campaigns with live KPIs, trend indicators, and spend pacing.',
+    metrics: [
+      { val:'12',   lbl:'Live Campaigns' },
+      { val:'8.4M', lbl:'Impressions' },
+      { val:'3.2%', lbl:'Click Rate' }
+    ],
+    cta: 'Open Dashboard', dismiss: 'Customize',
+    proc: ['Connecting data streams', 'Aggregating KPIs', 'Rendering dashboard'],
+    reply: "Your campaign performance dashboard is ready — live KPIs across all 12 active campaigns, updating in real time."
+  },
+  slides: {
+    label: 'Slides', badge: 'Draft', badgeClass: 'slides',
+    title: 'Q3 Campaign Strategy Deck',
+    desc: 'A 7-slide executive presentation covering audience, channel strategy, timeline, and projected ROI.',
+    steps: [
+      'Executive Summary & Q3 Goals',
+      'Target Audience Profile',
+      'Channel Strategy & Budget Mix',
+      'Campaign Timeline & Milestones',
+      'Projected KPIs & Revenue Impact',
+      'Creative & Messaging Framework',
+      'Appendix & Data Sources'
+    ],
+    cta: 'Export Deck', dismiss: 'Edit',
+    proc: ['Structuring deck', 'Drafting slides', 'Applying design'],
+    reply: "Your Q3 strategy deck is drafted — 7 slides covering audience, channels, timeline, and projected ROI. Ready to review."
   }
 };
 
@@ -2142,7 +2189,10 @@ const THOUGHT_CHAIN_STEPS = {
   automation: ['Mapping trigger conditions to contact segments', 'Configuring email template and suppression rules', 'Setting wait logic and frequency caps', 'Building SMS fallback for non-openers', 'Validating flow logic end-to-end'],
   campaign:   ['Selecting channels based on audience overlap', 'Allocating budget by predicted channel ROAS', 'Scheduling sends around peak engagement windows', 'Applying creative specs per channel', 'Finalizing targeting rules and flight dates'],
   journey:    ['Mapping contact lifecycle milestones', 'Configuring stage triggers and exit conditions', 'Personalizing content for each stage', 'Setting frequency caps and fatigue rules', 'Running journey logic validation'],
-  media:      ['Analyzing Q2 ROAS by channel', 'Running channel mix optimizer', 'Benchmarking against category standards', 'Factoring audience reach by platform', 'Finalizing budget allocation and flight plan']
+  media:      ['Analyzing Q2 ROAS by channel', 'Running channel mix optimizer', 'Benchmarking against category standards', 'Factoring audience reach by platform', 'Finalizing budget allocation and flight plan'],
+  report:     ['Pulling campaign performance data for Q2', 'Calculating channel-level conversion and ROAS metrics', 'Identifying spend efficiency outliers and opportunities', 'Generating visualizations and breakdowns', 'Compiling final report with insights and recommendations'],
+  dashboard:  ['Connecting to live campaign data streams', 'Aggregating impressions, clicks, and conversion signals', 'Calculating real-time performance benchmarks', 'Building KPI widgets and trend indicators', 'Rendering dashboard layout and filters'],
+  slides:     ['Pulling campaign strategy and performance data', 'Structuring narrative arc and slide sequence', 'Generating audience and channel slide content', 'Drafting KPI projections and charts', 'Applying design theme and formatting']
 };
 
 const THOUGHT_CHAIN_FINAL = {
@@ -2151,7 +2201,10 @@ const THOUGHT_CHAIN_FINAL = {
   automation: "Automation is ready to go live. Review the flow and approve to activate.",
   campaign:   "Campaign drafted and ready for launch. Review the details and approve.",
   journey:    "Journey path built. Review the 4-stage sequence and approve to activate.",
-  media:      "Media plan finalized. Review channel allocation and approve."
+  media:      "Media plan finalized. Review channel allocation and approve.",
+  report:     "Report compiled — Q2 performance breakdown with channel-level ROAS is ready to review and export.",
+  dashboard:  "Dashboard is live — real-time KPIs across all active campaigns are ready to explore.",
+  slides:     "Deck drafted — 7 slides ready for review. Approve to export or share."
 };
 
 const CLARIFY_SCENARIOS = {
@@ -2183,6 +2236,9 @@ function detectClarifyScenario(text) {
 function detectArtifactType(text) {
   const t = text.toLowerCase();
   if (t.includes('media plan') || (t.includes('media') && !t.includes('social media'))) return 'media';
+  if (t.includes('dashboard'))  return 'dashboard';
+  if (t.includes('slide'))      return 'slides';
+  if (t.includes('report'))     return 'report';
   if (t.includes('audience'))   return 'audience';
   if (t.includes('forecast'))   return 'forecast';
   if (t.includes('automat'))    return 'automation';
